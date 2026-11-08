@@ -1,0 +1,21 @@
+# Registro de pruebas de SnackCheck
+
+Simulación local de extremo a extremo ejecutada el 8 de noviembre de 2026. Se reprodujeron las ramas descritas del flujo y se usaron respuestas de prueba para Open Food Facts y Groq. Los resultados corresponden a la simulación. La integración en vivo y el comportamiento del flujo instalado en n8n quedan sin verificar.
+
+| ID | Tipo | Objetivo | Entrada | Salida esperada | Pasos | Resultado observado |
+|---|---|---|---|---|---|---|
+| TC-001 | Funcional | Devolver el veredicto y el JSON completo para Nutella | `{"barcode":"3017620422003"}` | HTTP 200, no saludable, puntuación 2, azúcar y grasa en rojo y sal en verde | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 200, 🔴 Nutella: no saludable, puntuación 2, 🔴 azúcar, 🟢 sal y 🔴 grasa; párrafo de consumo ocasional. |
+| TC-002 | Funcional | Devolver la salida saludable | `{"barcode":"1234567890123"}` | HTTP 200, saludable, puntuación 0 y párrafo alentador | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 200, 🟢 Producto de prueba: saludable, puntuación 0 |
+| TC-003 | Funcional | Devolver la salida moderada aunque no haya nutrientes altos | `{"barcode":"1234567890124"}` | HTTP 200, moderado por Nutri-Score C, puntuación 0 | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 200, 🟠 Producto de prueba: moderado, puntuación 0 |
+| TC-004 | Integración simulada | Pasar datos de Open Food Facts y texto de Groq a un único JSON | `{"barcode":"3017620422003"}` | HTTP 200, energía de la ficha y párrafo de Groq en el mismo objeto | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 200, 🔴 Nutella: no saludable, puntuación 2, 539 kcal / 100 g y párrafo en el mismo JSON. |
+| TC-005 | Error | Responder a un cuerpo vacío | `{}` | HTTP 400, missing_barcode e indicación de uso | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 400, `missing_barcode` |
+| TC-006 | Error | Rechazar un código mal formado | `{"barcode":"abc123"}` | HTTP 400, invalid_barcode e indicación de usar solo números | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 400, `invalid_barcode` |
+| TC-007 | Error | Responder a un código desconocido | `{"barcode":"0000000000000"}` | HTTP 404, product_not_found y sugerencia de comprobar el código | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 404, `product_not_found` |
+| TC-008 | Error | Responder si el producto no tiene nutrientes | `{"barcode":"1234567890125"}` | HTTP 422, insufficient_data y sin veredicto | Enviar la entrada al flujo simulado y comparar la respuesta. | **Aprobado** · HTTP 422, `insufficient_data` |
+| TC-009 | Error | Distinguir un HTTP 503 de un código desconocido | `{"barcode":"1234567890126"}` | Respuesta útil de servicio no disponible, distinta de product_not_found | Simular HTTP 503 y comparar el error. | **Fallido** · HTTP 404, `product_not_found` |
+| TC-010 | Error | Responder de forma controlada ante timeout | `{"barcode":"1234567890127"}` | Respuesta HTTP con un mensaje útil para reintentar | Simular timeout y comprobar si se genera una respuesta. | **Fallido** · Sin respuesta HTTP en la simulación |
+| TC-011 | Rendimiento | Medir una carga pequeña | `{"barcode":"3017620422003"}` | Las ocho peticiones devuelven HTTP 200 y se registra su duración. | Ejecutar cinco peticiones secuenciales y tres simultáneas. | **Aprobado** · 8/8 HTTP 200. Secuenciales: 40, 31, 31, 31, 30 ms. Simultáneas: 30, 30, 30 ms. |
+
+**Datos simulados.** Nutella usa azúcar 56,3 g, sal 0,107 g, grasa 30,9 g, energía 539 kcal y grado E. Los códigos terminados en 123 y 124 usan la misma ficha de prueba (azúcar 2 g, sal 0,2 g y grasa 3 g), con grado A y C respectivamente. El código terminado en 125 devuelve una ficha sin nutrientes. El código de ceros devuelve 404. Los códigos terminados en 126 y 127 provocan un 503 y un timeout, respectivamente.
+
+**Nota de rendimiento.** Mediana de 31 ms en secuencial y 30 ms con tres peticiones simultáneas. Se introdujeron esperas de 8 ms para la API y 12 ms para Groq. Estos tiempos describen el simulador y no permiten estimar la latencia ni la capacidad en producción.
